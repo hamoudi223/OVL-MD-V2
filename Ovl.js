@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const pino = require("pino");
 const axios = require('axios');
+const NodeCache = require("node-cache");
+const msgRetryCounterCache = new NodeCache();
 const {
   default: makeWASocket,
   makeCacheableSignalKeyStore,
@@ -53,17 +55,17 @@ async function startPrincipalSession() {
     const { version } = await fetchLatestBaileysVersion();
 
     const ovl = makeWASocket({
-      version,
-      logger: pino({ level: "silent" }),
-      browser: Browsers.macOS("Safari"),
-      generateHighQualityLinkPreview: true,
-      syncFullHistory: false,
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }))
-      }
-    });
-
+  version,
+  auth: {
+    creds: state.creds,
+    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
+  },
+  logger: pino({ level: "silent" }),
+  keepAliveIntervalMs: 10000,
+  browser: Browsers.macOS("Safari"),
+  msgRetryCounterCache,
+  syncFullHistory: false
+});
     ovl.ev.on("messages.upsert", async (m) => message_upsert(m, ovl));
     ovl.ev.on("group-participants.update", async (data) => group_participants_update(data, ovl));
 
